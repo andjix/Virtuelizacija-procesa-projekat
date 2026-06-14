@@ -52,7 +52,7 @@ namespace Client
             Console.WriteLine("1. Ucitaj CSV i posalji podatke servisu");
             Console.WriteLine("2. Zavrsi aktivnu sesiju");
             Console.WriteLine("0. Izlaz");
-            Console.Write("Odabir: ");
+            Console.Write("Izbor: ");
         }
 
         static void SendDataFromCsv()
