@@ -134,7 +134,7 @@ namespace Server
             CloseSessionFiles();
 
             OnTransferCompleted?.Invoke(sampleCount);
-            WriteColoredLine("[INFO] zavr\u0161en prenos", ConsoleColor.Gray);
+            WriteColoredLine("[INFO] zavrsen prenos", ConsoleColor.Gray);
             WriteColoredLine("[INFO] Sesija zavrsena.", ConsoleColor.Gray);
 
             return OperationResponse.Ack("COMPLETED", "Sesija uspesno zavrsena.");
