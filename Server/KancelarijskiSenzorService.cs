@@ -77,7 +77,7 @@ namespace Server
                 out double pct) ? pct : 25.0;
 
             OnTransferStarted?.Invoke(meta);
-            Console.WriteLine($"[SERVER] Sesija pokrenuta. {meta}");
+            WriteColoredLine($"[INFO] Sesija pokrenuta. {meta}", ConsoleColor.Gray);
 
             return OperationResponse.Ack("IN_PROGRESS", "Sesija uspesno pokrenuta.");
         }
@@ -89,8 +89,9 @@ namespace Server
                 return OperationResponse.Nack("FAILED", "Nema aktivne sesije. Pozovite StartSession pre slanja uzoraka.");
             }
 
-            Console.WriteLine("\nprenos u toku...");
+            WriteColoredLine("\n[INFO] prenos u toku...", ConsoleColor.Gray);
             OnSampleReceived?.Invoke(sample);
+            WriteColoredLine("\n[INFO] završen prenos",ConsoleColor.Gray);
 
             try
             {
@@ -116,7 +117,7 @@ namespace Server
             AnalyzeTemperature(sample);
             previousSample = sample;
 
-            Console.WriteLine($"[SERVER] Uzorak primljen: {sample}");
+            WriteColoredLine($"[SAMPLE] Uzorak primljen: {sample}", ConsoleColor.Green);
 
             return OperationResponse.Ack("IN_PROGRESS", "Uzorak uspesno primljen.");
         }
@@ -133,8 +134,8 @@ namespace Server
             CloseSessionFiles();
 
             OnTransferCompleted?.Invoke(sampleCount);
-            Console.WriteLine("zavr\u0161en prenos");
-            Console.WriteLine("[SERVER] Sesija zavrsena.");
+            WriteColoredLine("[INFO] zavr\u0161en prenos", ConsoleColor.Gray);
+            WriteColoredLine("[INFO] Sesija zavrsena.", ConsoleColor.Gray);
 
             return OperationResponse.Ack("COMPLETED", "Sesija uspesno zavrsena.");
         }
@@ -286,28 +287,36 @@ namespace Server
 
         private void LogTransferStarted(SessionMeta meta)
         {
-            Console.WriteLine($"[EVENT] OnTransferStarted: {meta}");
+            WriteColoredLine($"[INFO] OnTransferStarted: {meta}", ConsoleColor.Gray);
         }
 
         private void LogSampleReceived(SensorSample sample)
         {
             string sampleText = sample == null ? "null" : sample.ToString();
-            Console.WriteLine($"[EVENT] OnSampleReceived: {sampleText}");
+            WriteColoredLine($"[SAMPLE] OnSampleReceived: {sampleText}", ConsoleColor.Green);
         }
 
         private void LogTransferCompleted(int numberOfSamples)
         {
-            Console.WriteLine($"[EVENT] OnTransferCompleted: primljeno {numberOfSamples} uzoraka.");
+            WriteColoredLine($"[INFO] OnTransferCompleted: primljeno {numberOfSamples} uzoraka.", ConsoleColor.Gray);
         }
 
         private void LogWarningRaised(string warningType, string message)
         {
-            Console.WriteLine($"[EVENT] OnWarningRaised: {warningType} - {message}");
+            WriteColoredLine($"[WARNING] {warningType}: {message}", ConsoleColor.Red);
         }
 
         private void RaiseWarning(string warningType, string message)
         {
             OnWarningRaised?.Invoke(warningType, message);
+        }
+
+        private void WriteColoredLine(string message, ConsoleColor color)
+        {
+            ConsoleColor oldColor = Console.ForegroundColor;
+            Console.ForegroundColor = color;
+            Console.WriteLine(message);
+            Console.ForegroundColor = oldColor;
         }
 
         private void PrepareSessionFiles()

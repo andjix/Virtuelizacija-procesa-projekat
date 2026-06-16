@@ -3,11 +3,14 @@ using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.ServiceModel;
+using System.Threading;
 
 namespace Client
 {
     class Program
     {
+        private const int SampleDelayMs = 250;
+
         static IKancelarijskiSenzorService proxy;
         static ChannelFactory<IKancelarijskiSenzorService> factory;
 
@@ -93,7 +96,7 @@ namespace Client
                 return;
             }
 
-            Console.WriteLine($"[CLIENT] Ucitano {samples.Count} validnih uzoraka. Pocinje slanje...");
+            WriteColoredLine($"[INFO] Ucitano {samples.Count} validnih uzoraka. Pocinje slanje...", ConsoleColor.Gray);
 
             SessionMeta meta = CsvParser.BuildSessionMeta(samples);
 
@@ -112,7 +115,7 @@ namespace Client
                 sessionLog.WriteLine($"Meta: {meta}");
 
                 OperationResponse startResponse = proxy.StartSession(meta);
-                Console.WriteLine($"[CLIENT] StartSession -> {startResponse}");
+                WriteColoredLine($"[INFO] StartSession -> {startResponse}", ConsoleColor.Gray);
                 sessionLog.WriteLine($"StartSession: {startResponse}");
 
                 if (!startResponse.IsAcknowledged)
@@ -126,40 +129,43 @@ namespace Client
                 for (int i = 0; i < samples.Count; i++)
                 {
                     OperationResponse pushResponse = proxy.PushSample(samples[i]);
-                    Console.WriteLine($"[CLIENT] PushSample [{i + 1}/{samples.Count}] -> {pushResponse}");
                     sessionLog.WriteLine($"PushSample [{i + 1}/{samples.Count}]: {pushResponse}");
 
                     if (!pushResponse.IsAcknowledged)
                     {
-                        Console.WriteLine($"[CLIENT] Servis nije prihvatio uzorak {i + 1}. Prekidam slanje.");
+                        WriteColoredLine($"{i + 1} -> Uzorak odbijen: {pushResponse.Message}", ConsoleColor.Red);
+                        WriteColoredLine($"[INFO] Servis nije prihvatio uzorak {i + 1}. Prekidam slanje.", ConsoleColor.Gray);
                         sessionLog.WriteLine($"[PREKID] Uzorak {i + 1} odbijen.");
                         break;
                     }
+
+                    WriteColoredLine($"{i + 1} -> Uzorak uspesno obradjen: {pushResponse.Message}", ConsoleColor.Green);
                     sentCount++;
+                    Thread.Sleep(SampleDelayMs);
                 }
 
-                Console.WriteLine($"[CLIENT] Poslato {sentCount} od {samples.Count} uzoraka.");
+                WriteColoredLine($"[INFO] Poslato {sentCount} od {samples.Count} uzoraka.", ConsoleColor.Gray);
 
                 OperationResponse endResponse = proxy.EndSession();
-                Console.WriteLine($"[CLIENT] EndSession -> {endResponse}");
+                WriteColoredLine($"[INFO] EndSession -> {endResponse}", ConsoleColor.Gray);
                 sessionLog.WriteLine($"EndSession: {endResponse}");
                 sessionLog.WriteLine($"[SESIJA ZAVRSENA] Poslato {sentCount}/{samples.Count} uzoraka.");
             }
             catch (FaultException<DataFormatFault> e)
             {
-                Console.WriteLine($"[CLIENT] DataFormatFault: [{e.Detail.FieldName}] {e.Detail.Message}");
+                WriteColoredLine($"[ERROR] DataFormatFault: [{e.Detail.FieldName}] {e.Detail.Message}", ConsoleColor.Red);
                 sessionLog?.WriteLine($"[GRESKA DataFormatFault] [{e.Detail.FieldName}] {e.Detail.Message}");
                 SafeEndSession();
             }
             catch (FaultException<ValidationFault> e)
             {
-                Console.WriteLine($"[CLIENT] ValidationFault: [{e.Detail.FieldName}] {e.Detail.Message} (Ocekivano: {e.Detail.ExpectedRange})");
+                WriteColoredLine($"[ERROR] ValidationFault: [{e.Detail.FieldName}] {e.Detail.Message} (Ocekivano: {e.Detail.ExpectedRange})", ConsoleColor.Red);
                 sessionLog?.WriteLine($"[GRESKA ValidationFault] [{e.Detail.FieldName}] {e.Detail.Message} (Ocekivano: {e.Detail.ExpectedRange})");
                 SafeEndSession();
             }
             catch (Exception e)
             {
-                Console.WriteLine($"[CLIENT] Neocekivana greska u toku prenosa: {e.Message}");
+                WriteColoredLine($"[ERROR] Neocekivana greska u toku prenosa: {e.Message}", ConsoleColor.Red);
                 sessionLog?.WriteLine($"[GRESKA] Neocekivana greska usred prenosa: {e.Message}");
                 SafeEndSession();
             }
@@ -178,7 +184,7 @@ namespace Client
             try
             {
                 proxy.EndSession();
-                Console.WriteLine("[CLIENT] Sesija zatvorena nakon greske.");
+                WriteColoredLine("[INFO] Sesija zatvorena nakon greske.", ConsoleColor.Gray);
             }
             catch
             {
@@ -194,8 +200,16 @@ namespace Client
             }
             catch (Exception e)
             {
-                Console.WriteLine($"[CLIENT] Greska pri EndSession: {e.Message}");
+                WriteColoredLine($"[ERROR] Greska pri EndSession: {e.Message}", ConsoleColor.Red);
             }
+        }
+
+        static void WriteColoredLine(string message, ConsoleColor color)
+        {
+            ConsoleColor oldColor = Console.ForegroundColor;
+            Console.ForegroundColor = color;
+            Console.WriteLine(message);
+            Console.ForegroundColor = oldColor;
         }
 
     }
