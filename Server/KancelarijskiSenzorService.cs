@@ -85,13 +85,9 @@ namespace Server
         public OperationResponse PushSample(SensorSample sample)
         {
             if (!sessionActive)
-            {
                 return OperationResponse.Nack("FAILED", "Nema aktivne sesije. Pozovite StartSession pre slanja uzoraka.");
-            }
 
-            WriteColoredLine("\n[INFO] prenos u toku...", ConsoleColor.Gray);
-            OnSampleReceived?.Invoke(sample);
-            WriteColoredLine("\n[INFO] završen prenos",ConsoleColor.Gray);
+            
 
             try
             {
@@ -108,14 +104,18 @@ namespace Server
                 throw;
             }
 
-            sampleCount++;
-            volumeSum += sample.Volume;
-            volumeMean = volumeSum / sampleCount;
+            
+
+            OnSampleReceived?.Invoke(sample);
 
             WriteAcceptedSample(sample);
-            AnalyzeVolume(sample);
+            AnalyzeVolume(sample);       
             AnalyzeTemperature(sample);
             previousSample = sample;
+
+            sampleCount++;               
+            volumeSum += sample.Volume;
+            volumeMean = volumeSum / sampleCount;
 
             WriteColoredLine($"[SAMPLE] Uzorak primljen: {sample}", ConsoleColor.Green);
 
@@ -134,7 +134,6 @@ namespace Server
             CloseSessionFiles();
 
             OnTransferCompleted?.Invoke(sampleCount);
-            WriteColoredLine("[INFO] zavrsen prenos", ConsoleColor.Gray);
             WriteColoredLine("[INFO] Sesija zavrsena.", ConsoleColor.Gray);
 
             return OperationResponse.Ack("COMPLETED", "Sesija uspesno zavrsena.");
@@ -232,6 +231,7 @@ namespace Server
 
         private void AnalyzeVolume(SensorSample sample)
         {
+            
             if (previousSample != null)
             {
                 double deltaV = sample.Volume - previousSample.Volume;
@@ -244,18 +244,22 @@ namespace Server
                 }
             }
 
-            double lower = volumeMean * (1.0 - outOfBandPercent / 100.0);
-            double upper = volumeMean * (1.0 + outOfBandPercent / 100.0);
+          
+            if (sampleCount > 0)
+            {
+                double lower = volumeMean * (1.0 - outOfBandPercent / 100.0);
+                double upper = volumeMean * (1.0 + outOfBandPercent / 100.0);
 
-            if (sample.Volume < lower)
-            {
-                string message = $"Volume={sample.Volume:F2}, Vmean={volumeMean:F2}, donja granica={lower:F2}, smer=ispod o\u010dekivane vrednosti";
-                RaiseWarning("OutOfBandWarning", message);
-            }
-            else if (sample.Volume > upper)
-            {
-                string message = $"Volume={sample.Volume:F2}, Vmean={volumeMean:F2}, gornja granica={upper:F2}, smer=iznad o\u010dekivane vrednosti";
-                RaiseWarning("OutOfBandWarning", message);
+                if (sample.Volume < lower)
+                {
+                    string message = $"Volume={sample.Volume:F2}, Vmean={volumeMean:F2}, donja granica={lower:F2}, smer=ispod o\u010dekivane vrednosti";
+                    RaiseWarning("OutOfBandWarning", message);
+                }
+                else if (sample.Volume > upper)
+                {
+                    string message = $"Volume={sample.Volume:F2}, Vmean={volumeMean:F2}, gornja granica={upper:F2}, smer=iznad o\u010dekivane vrednosti";
+                    RaiseWarning("OutOfBandWarning", message);
+                }
             }
         }
 
@@ -288,6 +292,7 @@ namespace Server
         private void LogTransferStarted(SessionMeta meta)
         {
             WriteColoredLine($"[INFO] OnTransferStarted: {meta}", ConsoleColor.Gray);
+            WriteColoredLine("[INFO] prenos u toku...", ConsoleColor.Gray);
         }
 
         private void LogSampleReceived(SensorSample sample)
@@ -299,6 +304,7 @@ namespace Server
         private void LogTransferCompleted(int numberOfSamples)
         {
             WriteColoredLine($"[INFO] OnTransferCompleted: primljeno {numberOfSamples} uzoraka.", ConsoleColor.Gray);
+            WriteColoredLine("[INFO] završen prenos", ConsoleColor.Gray);
         }
 
         private void LogWarningRaised(string warningType, string message)
